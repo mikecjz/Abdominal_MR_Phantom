@@ -21,7 +21,8 @@ function cmap = generateCoilMap(imsize,nc,sigma,ang)
 
     function cmap = coilmap_2D(imsize,nc,sigma,ang)
         [X,Y] = meshgrid(1:imsize(1),1:imsize(2));
-        initPoint = [0;imsize(1)/4;1];
+%         initPoint = [0;imsize(1)/4;1];
+        initPoint = [imsize(1)/4;1];
         
         cmap = zeros([imsize nc],'single');
         for i=1:nc
@@ -58,6 +59,12 @@ function cmap = generateCoilMap(imsize,nc,sigma,ang)
         end
     end
     % END coilmap_3D()
+    
+    function newvec = rotatePoint(vector,angle)
+       theta = angle*pi/180;
+       rotMat = [cos(theta),-sin(theta);sin(theta),cos(theta)]; 
+       newvec = rotMat*vector;
+    end
 
 cmap = [];
 

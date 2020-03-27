@@ -1,5 +1,6 @@
-function rotmat=zrot(theta)
-%% theta is in rad
-%% left handed rotations
-theta_rad=theta;
-rotmat=[cos(theta_rad) sin(theta_rad) 0; -sin(theta_rad) cos(theta_rad) 0; 0 0 1];
+% http://mrsrl.stanford.edu/~brian/bloch/
+function Rz=zrot(phi)
+
+Rz = [cos(phi) -sin(phi) 0;sin(phi) cos(phi) 0; 0 0 1];
+
+

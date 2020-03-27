@@ -45,7 +45,7 @@ savename = 'voxim15';
 % 'SingleSpinEcho' => T2 mapping
 % 'SingleSpinEchoWithFatSat' => Diffusion-weighted image
 % 'MultiEchoSpoiledGradientEcho' => Proton density fat fraction
-sigtype = 'SingleSpinEcho';
+sigtype = 'SpoiledGradientEcho';
 
 % Define sampling trajectory:
 % 'cartesian'
