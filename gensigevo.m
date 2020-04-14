@@ -36,8 +36,22 @@ perfT1 = seqparam.perfT1;
 Nex = seqparam.Nex;
 Necho = seqparam.Necho;
 cnt = numel(r);
+
+
 if isfield(seqparam,'bval') && any(seqparam.bval > 0)
     bval = seqparam.bval;
+end
+
+if isfield(seqparam,'satTime')
+    satTime = seqparam.satTime;
+end
+
+if isfield(seqparam,'T2PrepTime')
+    T2PrepTime = seqparam.T2PrepTime;
+end
+
+if isfield(seqparam,'gapTime')
+    gapTime = seqparam.gapTime;
 end
 
 %% Bloch simulation of 2D QALAS signal
@@ -111,6 +125,20 @@ for idf = 1:numel(seqparam.dfrange)
                     Mtmp = Rx90*Mtmp;
                     Mtmp = freeprecspin(Mtmp,TErelax/2,T1,T2,df,Nspins);
                     TErelax = TErelax/2;
+                case 3 % Saturation Recovry
+                    Mtmp = freeprecspin(Mtmp,relaxTime,T1,T2,df,Nspins); %This step is perhaps unneccessary for SR? 
+                    
+                    Mtmp = Rx90*Mtmp;
+                    Mtmp = freeprecspin(Mtmp,satTime,T1,T2,df,Nspins);
+                case 4 % T2 prep (2 same direction 90 pulses)
+                    Mtmp = freeprecspin(Mtmp,relaxTime,T1,T2,df,Nspins); %This step is perhaps unneccessary for T2prep? 
+                    Mtmp = Rx90*Mtmp;
+                    
+                    Mtmp = freeprecspin(Mtmp,T2PrepTime,T1,T2,df,Nspins);
+                    
+                    Mtmp = -1*Rx90*Mtmp;
+                case 5 % Gap
+                     Mtmp = freeprecspin(Mtmp,gapTime,T1,T2,df,Nspins);
                 otherwise
                     error('invalid prep pulse')
             end
