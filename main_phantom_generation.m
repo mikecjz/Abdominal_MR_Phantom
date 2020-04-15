@@ -35,6 +35,8 @@
  
 clear; close all;
 
+addpath('/home/junzhou/Desktop/selectSlice_GUI')
+
 % Define file name
 savename = 'voxim15';
 
@@ -45,7 +47,7 @@ savename = 'voxim15';
 % 'SingleSpinEcho' => T2 mapping
 % 'SingleSpinEchoWithFatSat' => Diffusion-weighted image
 % 'MultiEchoSpoiledGradientEcho' => Proton density fat fraction
-sigtype = 'SpoiledGradientEcho';
+sigtype = 'SLIDER';
 
 % Define sampling trajectory:
 % 'cartesian'
@@ -54,31 +56,31 @@ sigtype = 'SpoiledGradientEcho';
 samptraj = 'cartesian';
 
 % Define 3D resolution and FOV
-fov = 420; % field-of-view (mm)
-mtx = 256; % matrix size
-npar = 64; % # of partitions
-slthick = 3; % slice thickness (mm)
+fov = 275; % field-of-view (mm)
+mtx = 160; % matrix size
+npar = 40; % # of partitions
+slthick = 6; % slice thickness (mm)
 nset = 1; % # of sets
 
 % Define number of sampling lines
-np_cartesian = 256; % # of Cartesian lines
+np_cartesian = 160; % # of Cartesian lines
 np_radial = 288; % # of projections/spokes
 np_spiral = 48; % # of spiral arms
-sampmode = 'demo'; % sampling mode: 'demo', 'simple', 'eachEcho' 
+sampmode = 'simple'; % sampling mode: 'demo', 'simple', 'eachEcho' 
 % Note that "sampmode" will affect the simulation time (mins to hours, depending on the number of Echoes).
 % Use 'eachEcho' option only when Echo-by-Echo simulation is nessasary
 
 % Define 3D respiratory motion curve and temporal resolution (eq. each TR or each volume)
 respmotion = 'respmov.mat';
-tempres = 400; % temporal resolution (ms)
+tempres = 80; % temporal resolution (ms)
 tempdur = 4000; % duration of each respiratory cycle (ms)
 SImov = 13; % largest superior-inferior (SI) excursion (mm)
 APmov = 6.5; % largest anterior-posterior (AP) excursion (mm)
 LRmov = 2; % largest left-right (LR) excursion (mm)
 
 % Define coil sensitivity map
-coilmap = 'origcmap.mat';
-nc = 20; % # of coils
+coilmap = 'onecmap.mat';
+nc = 1; % # of coils
 
 % Define fat-water chemical shift
 FWshift = 220; % water and fat are separated by approximately 440Hz in a 3T static field
@@ -99,9 +101,9 @@ tframe = floor(tempdur/tempres);
 linv = genresp(respmov,tframe,[SImov APmov LRmov]);
 
 % Convert mesh models to voxels (This step will take mins to hours, depending on the number of time frames)
-xpts = -round((fov/420)*mtx/2)+1:round((fov/420)*mtx/2);
-ypts = -round((fov/420)*mtx/2)+1:round((fov/420)*mtx/2); % x matrix size = y matrix size
-zpts = linspace(round(-npar*slthick/3+35),round(npar*slthick/3+35),npar);
+xpts = -round((fov/fov)*mtx/2)+1:round((fov/fov)*mtx/2);
+ypts = -round((fov/fov)*mtx/2)+1:round((fov/fov)*mtx/2); % x matrix size = y matrix size
+zpts = linspace(round(-npar*slthick/3+10),round(npar*slthick/3+10),npar);
 phanimg = mesh2model(tissueprop,linv,xpts,ypts,zpts);
 
 % Show phantom images
@@ -131,6 +133,8 @@ cmap = gencmap([mtx mtx npar],nc,origcmap);
 % Sequence parameters
 [seqparam,defseq] = setseqparam(sigtype,[np npar nset],sampmode);
 
+%Overider demosig for SLIDER
+defseq.demosig = 1:10:800;
 % Bloch simulation
 sigevo = gensigevo(tissueprop,seqparam);
 
@@ -139,11 +143,14 @@ nt = length(defseq.demosig);
 [nr,~] = size(opts.kx);
 mixsamp = zeros(nr,np,nc,npar,nt,'single');
 for itp = 1:nt
-    imPall = model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:)); % Ground truth images
+%     imPall = model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:)); % Ground truth images
+    imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
+        sigevo(defseq.demosig(itp),:,:)); % Ground truth images
     if itp == 1
         nval = calcnoiselvl(imPall,cmap);
     end
-    mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
+%     disp(itp)
+%     mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
 end
 
 save([savename '_mixsamp.mat'],'mixsamp','-v7.3')

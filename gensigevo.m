@@ -75,6 +75,14 @@ tidefault = 20.64/1000;
 for idf = 1:numel(seqparam.dfrange)
     fprintf('df = %d\n',seqparam.dfrange(idf));
     for ir = 1:cnt
+        
+        
+        if ir == 2
+            disp(ir)
+        elseif ir == 11
+            disp(ir)
+        end
+        
         T1 = r(ir).T1/1000;
         T2 = r(ir).T2/1000;
         
@@ -97,6 +105,16 @@ for idf = 1:numel(seqparam.dfrange)
             TErelax = TE(n,:);
             relaxTime = TR(n)-TErelax(1)-rfPulseDur/2;
             if TErelax < 0, error(['TErelax ' num2str(n) ' < 0']); end
+            
+            if n == 325
+                disp(n)
+            elseif n == 326
+                disp(n)
+            elseif n == 400
+                disp(n)
+            elseif n == 401
+                disp(n)
+            end
             
             switch prep(n)
                 
@@ -130,6 +148,8 @@ for idf = 1:numel(seqparam.dfrange)
                     
                     Mtmp = Rx90*Mtmp;
                     Mtmp = freeprecspin(Mtmp,satTime,T1,T2,df,Nspins);
+                    
+                    Mtmp(1:2,:) = 0;% Assume spoiler
                 case 4 % T2 prep (2 same direction 90 pulses)
                     Mtmp = freeprecspin(Mtmp,relaxTime,T1,T2,df,Nspins); %This step is perhaps unneccessary for T2prep? 
                     Mtmp = Rx90*Mtmp;
@@ -137,6 +157,8 @@ for idf = 1:numel(seqparam.dfrange)
                     Mtmp = freeprecspin(Mtmp,T2PrepTime,T1,T2,df,Nspins);
                     
                     Mtmp = -1*Rx90*Mtmp;
+                    
+                    Mtmp(1:2,:) = 0;% Assume spoiler
                 case 5 % Gap
                      Mtmp = freeprecspin(Mtmp,gapTime,T1,T2,df,Nspins);
                 otherwise
