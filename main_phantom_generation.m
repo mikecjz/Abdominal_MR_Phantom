@@ -138,7 +138,7 @@ cmap = gencmap([mtx mtx npar],nc,origcmap);
 
 %Overider demosig for SLIDER
 defseq.demosig = 1:1:60000;
-
+demosig = defseq.demosig;
 % Bloch simulation
 sigevo = gensigevo(tissueprop,seqparam);
 
@@ -147,7 +147,7 @@ nt = length(defseq.demosig);
 [nr,~] = size(opts.kx);
 % mixsamp = zeros(nr,np,nc,npar,nt,'single'); % will run out of memory for nt = 60,000
 
-mixsampLin = zeros(nr,nc,nt);
+mixsampLin = zeros(nr,nc,nt)+1i*ones(nr,nc,nt);
 kr = mod((1:nt)-1,np)+1;
 
 sigma = 5; % std
@@ -156,13 +156,14 @@ kz(kz>40) = 40;
 kz(kz<1) = 1;
 
 nval = 0.0016;
+
 parfor itp = 1:nt
 %     imPall =
 %     model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:));
 %     % Ground truth images original
 
-
-    imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:)); % Ground truth image
+    
+    imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(demosig(itp))/80)-1,tframe)+1),sigevo(demosig(mod(itp-1,400)+1),:,:)); % Ground truth image
     
 %     imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
 %         sigevo(defseq.demosig(itp),:,:)); % Ground truth images
@@ -174,10 +175,12 @@ parfor itp = 1:nt
 
     ksp3D = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
     
-    mixsampLin(:,:,itp) = ksp3D(:,kr(itp),:,kz(itp));
+    mixsampLin(:,:,itp) = squeeze(ksp3D(:,kr(itp),:,kz(itp)));
 end
 
-save([savename '_mixsamp.mat'],'mixsamp','-v7.3')
+% save([savename '_mixsamp.mat'],'mixsamp','-v7.3')
+
+save('../offline_ksp.mat','mixsampLin','-v7.3')
 fprintf('Data acquisition done\n');
 
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
