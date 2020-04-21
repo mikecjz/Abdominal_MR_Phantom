@@ -77,11 +77,11 @@ for idf = 1:numel(seqparam.dfrange)
     for ir = 1:cnt
         
         
-        if ir == 2
-            disp(ir)
-        elseif ir == 11
-            disp(ir)
-        end
+%         if ir == 2
+%             disp(ir)
+%         elseif ir == 11
+%             disp(ir)
+%         end
         
         T1 = r(ir).T1/1000;
         T2 = r(ir).T2/1000;
@@ -106,15 +106,15 @@ for idf = 1:numel(seqparam.dfrange)
             relaxTime = TR(n)-TErelax(1)-rfPulseDur/2;
             if TErelax < 0, error(['TErelax ' num2str(n) ' < 0']); end
             
-            if n == 325
-                disp(n)
-            elseif n == 326
-                disp(n)
-            elseif n == 400
-                disp(n)
-            elseif n == 401
-                disp(n)
-            end
+%             if n == 325
+%                 disp(n)
+%             elseif n == 326
+%                 disp(n)
+%             elseif n == 400
+%                 disp(n)
+%             elseif n == 401
+%                 disp(n)
+%             end
             
             switch prep(n)
                 

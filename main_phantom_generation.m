@@ -53,18 +53,18 @@ sigtype = 'SLIDER';
 % 'cartesian'
 % 'radial'
 % 'spiral'
-samptraj = 'cartesian';
+samptraj = 'radial';
 
 % Define 3D resolution and FOV
-fov = 275; % field-of-view (mm)
-mtx = 160; % matrix size
+fov = 550; % field-of-view (mm)
+mtx = 320; % matrix size
 npar = 40; % # of partitions
 slthick = 6; % slice thickness (mm)
 nset = 1; % # of sets
 
 % Define number of sampling lines
 np_cartesian = 160; % # of Cartesian lines
-np_radial = 288; % # of projections/spokes
+np_radial = 100; % # of projections/spokes
 np_spiral = 48; % # of spiral arms
 sampmode = 'simple'; % sampling mode: 'demo', 'simple', 'eachEcho' 
 % Note that "sampmode" will affect the simulation time (mins to hours, depending on the number of Echoes).
@@ -79,12 +79,15 @@ APmov = 6.5; % largest anterior-posterior (AP) excursion (mm)
 LRmov = 2; % largest left-right (LR) excursion (mm)
 
 % Define coil sensitivity map
-coilmap = 'onecmap.mat';
-nc = 1; % # of coils
+coilmap = 'origcmap.mat';
+nc = 18; % # of coils
 
 % Define fat-water chemical shift
 FWshift = 220; % water and fat are separated by approximately 440Hz in a 3T static field
 
+% Load defined tissue properties: T1, T2, ADC, PDFF
+tissueprop = tissueproperty;
+tframe = floor(tempdur/tempres);
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% PART 1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -134,23 +137,44 @@ cmap = gencmap([mtx mtx npar],nc,origcmap);
 [seqparam,defseq] = setseqparam(sigtype,[np npar nset],sampmode);
 
 %Overider demosig for SLIDER
-defseq.demosig = 1:10:800;
+defseq.demosig = 1:1:60000;
+
 % Bloch simulation
 sigevo = gensigevo(tissueprop,seqparam);
 
 % Convert voxels to phantom images (This step will take mins to hours, depending on the number of time frames)
 nt = length(defseq.demosig);
 [nr,~] = size(opts.kx);
-mixsamp = zeros(nr,np,nc,npar,nt,'single');
-for itp = 1:nt
-%     imPall = model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:)); % Ground truth images
-    imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
-        sigevo(defseq.demosig(itp),:,:)); % Ground truth images
-    if itp == 1
-        nval = calcnoiselvl(imPall,cmap);
-    end
-%     disp(itp)
+% mixsamp = zeros(nr,np,nc,npar,nt,'single'); % will run out of memory for nt = 60,000
+
+mixsampLin = zeros(nr,nc,nt);
+kr = mod((1:nt)-1,np)+1;
+
+sigma = 5; % std
+kz = round(randn(1,nt)*sigma+20);
+kz(kz>40) = 40;
+kz(kz<1) = 1;
+
+nval = 0.0016;
+parfor itp = 1:nt
+%     imPall =
+%     model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:));
+%     % Ground truth images original
+
+
+    imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:)); % Ground truth image
+    
+%     imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
+%         sigevo(defseq.demosig(itp),:,:)); % Ground truth images
+%     if itp == 1
+%         nval = calcnoiselvl(imPall,cmap);
+%     end
+    disp(itp)
 %     mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
+
+    ksp3D = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
+    
+    mixsampLin(:,:,itp) = ksp3D(:,kr(itp),:,kz(itp));
 end
 
 save([savename '_mixsamp.mat'],'mixsamp','-v7.3')
