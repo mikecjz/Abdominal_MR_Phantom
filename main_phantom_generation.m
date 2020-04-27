@@ -72,8 +72,8 @@ sampmode = 'simple'; % sampling mode: 'demo', 'simple', 'eachEcho'
 
 % Define 3D respiratory motion curve and temporal resolution (eq. each TR or each volume)
 respmotion = 'respmov.mat';
-tempres = 80; % temporal resolution (ms)
-tempdur = 4000; % duration of each respiratory cycle (ms)
+tempres = 60; % temporal resolution (ms)
+tempdur = 4200; % duration of each respiratory cycle (ms)
 SImov = 13; % largest superior-inferior (SI) excursion (mm)
 APmov = 6.5; % largest anterior-posterior (AP) excursion (mm)
 LRmov = 2; % largest left-right (LR) excursion (mm)
@@ -173,9 +173,10 @@ parfor itp = 1:nt
     disp(itp)
 %     mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
 
-    ksp3D = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
+%     ksp3D = voximg2ksppar(imPall,cmap,nval,opts); % k-space + noise
     
-    mixsampLin(:,:,itp) = squeeze(ksp3D(:,kr(itp),:,kz(itp)));
+    ksp2D = voximg2ksppar(imPall,cmap,nval,opts,kz(itp)); % k-space + noise
+    mixsampLin(:,:,itp) = squeeze(ksp2D(:,kr(itp),:));
 end
 
 % save([savename '_mixsamp.mat'],'mixsamp','-v7.3')
