@@ -127,6 +127,8 @@ elseif strcmp(samptraj,'radial')
 elseif strcmp(samptraj,'spiral')
     np = np_spiral;
 end
+
+
 opts = prepareNUFFT(mtx,np,samptraj,'linear_sorted','fov',fov,'FWshift',FWshift);
 
 % Load in-vivo/simulated coil sensitivity maps
@@ -148,7 +150,7 @@ nt = length(defseq.demosig);
 % mixsamp = zeros(nr,np,nc,npar,nt,'single'); % will run out of memory for nt = 60,000
 
 mixsampLin = zeros(nr,nc,nt)+1i*ones(nr,nc,nt);
-kr = mod((1:nt)-1,np)+1;
+kr = defseq.demosig;
 
 sigma = 5; % std
 kz = round(randn(1,nt)*sigma+20);
@@ -156,28 +158,48 @@ kz(kz>40) = 40;
 kz(kz<1) = 1;
 
 nval = 0.0016;
-
+bigloopStart = tic;
 parfor itp = 1:nt
-%     imPall =
-%     model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:));
-%     % Ground truth images original
-
+    %     imPall =
+    %     model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:));
+    %     % Ground truth images original
     
-    imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(demosig(itp))/80)-1,tframe)+1),sigevo(demosig(mod(itp-1,400)+1),:,:)); % Ground truth image
     
-%     imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
-%         sigevo(defseq.demosig(itp),:,:)); % Ground truth images
-%     if itp == 1
-%         nval = calcnoiselvl(imPall,cmap);
-%     end
+    imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(demosig(itp))/tempres)-1,tframe)+1),sigevo(demosig(mod(itp-1,400)+1),:,:)); % Ground truth image
+    
+%         imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
+%             sigevo(defseq.demosig(itp),:,:)); % Ground truth images
+%         if itp == 1
+%             nval = calcnoiselvl(imPall,cmap);
+%         end
     disp(itp)
-%     mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
-
-%     ksp3D = voximg2ksppar(imPall,cmap,nval,opts); % k-space + noise
+    %     mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
     
-    ksp2D = voximg2ksppar(imPall,cmap,nval,opts,kz(itp)); % k-space + noise
-    mixsampLin(:,:,itp) = squeeze(ksp2D(:,kr(itp),:));
+    %     ksp3D = voximg2ksppar(imPall,cmap,nval,opts); % k-space + noise
+    
+    if mod(itp-1,10) ==0 %navigator line
+        %SLIDER Simulation only
+%         cmdstr = 'opts_oneLine = prepareNUFFT(mtx,2,samptraj,''goldenAngle_360_tracked'',''fov'',fov,''FWshift'',FWshift,''GAtrace'',1);';
+%         evalc(cmdstr);
+        opts_oneLine = prepareNUFFT(mtx,2,samptraj,'goldenAngle_360_tracked','fov',fov,'FWshift',FWshift,'GAtrace',1);
+        ksp2D = voximg2ksppar(imPall,cmap,nval,opts_oneLine,20); % k-space + noise
+        mixsampLin(:,:,itp) = squeeze(ksp2D(:,1,:));
+        
+        kz(itp) = 20;
+        kr(itp) = 20;
+    else
+        s = tic;
+        %SLIDER Simulation only
+%         cmdstr = 'opts_oneLine = prepareNUFFT(mtx,2,samptraj,''goldenAngle_360_tracked'',''fov'',fov,''FWshift'',FWshift,''GAtrace'',itp);';
+%         evalc(cmdstr);
+        opts_oneLine = prepareNUFFT(mtx,2,samptraj,'goldenAngle_360_tracked','fov',fov,'FWshift',FWshift,'GAtrace',itp);
+        keyboard;
+        ksp2D = voximg2ksppar(imPall,cmap,nval,opts_oneLine,kz(itp)); % k-space + noise
+        mixsampLin(:,:,itp) = squeeze(ksp2D(:,1,:));
+        disp(['loop in ',num2str(toc(s)),' sec'])
+    end
 end
+disp(['SLIDER sim in ',num2str(toc(bigloopStart)),' sec'])
 
 % save([savename '_mixsamp.mat'],'mixsamp','-v7.3')
 

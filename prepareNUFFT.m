@@ -5,7 +5,10 @@ function opts = prepareNUFFT(N,np,trajectory,viewOrder,varargin)
 % INPUTS
 % N [1x1] -> image size
 % trajectory [string]   -> 'radial', 'spiral'
-% viewOrder [string]    -> 'linear_sorted','goldenAngle_180','goldenAngle_sorted_180','goldenAngle_360','goldenAngle_sorted_360'
+% viewOrder [string]    ->
+% 'linear_sorted','goldenAngle_180','goldenAngle_sorted_180','goldenAngle_360','goldenAngle_sorted_360',
+% 'goldenAngle_360_tracked'
+%
 % optional arguments should be input as string-value pairs
 	% fov [1x1]                 -> field of view (mm2)
 	% correctionFactor [1x1]    -> raises the density compensation to a power (default is 1)
@@ -61,6 +64,13 @@ for i = 1:2:length(varargin)
             kspall = varargin{i+1};
         case 'FWshift'
             opts.FWshift = varargin{i+1};
+        case 'GAtrace' % Trace the order of golden angle. use only with 'goldenAngle_360_tracked'
+            opts.GAtrace = varargin{i+1};
+            
+            if ~strcmp(viewOrder,'goldenAngle_360_tracked')
+                errStr = 'parameter GAtrace can only be used with goldenAngle_360_tracked viewOrder';
+                error(errStr)
+            end
 		otherwise % skip it
 	end
 end
@@ -164,6 +174,12 @@ end
                 opts.angix = angix;
             case 'goldenAngle_360'
                 ang = 0:golden_angle:golden_angle*(np-1);
+                ang = rem(ang,360);
+                [~, angix] = sort(ang);
+                opts.angix = angix;
+            case 'goldenAngle_360_tracked'
+                GAstart = (opts.GAtrace-1)*golden_angle;
+                ang = GAstart:golden_angle:golden_angle*(np-1)+GAstart;
                 ang = rem(ang,360);
                 [~, angix] = sort(ang);
                 opts.angix = angix;

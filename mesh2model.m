@@ -25,7 +25,13 @@ nt = size(linv,1);
 
 % scale and shift 3D model according to non-rigid motion
 OUTPUTgridvalue = zeros(length(xpts),length(ypts),npar,nt);
-for onum = 1:length(tissueprop)
+
+%organidx for all tissues [nxpts x nypts x npar x nt x onum]
+organidxTissue = false(length(xpts),length(ypts),npar,nt,length(tissueprop)); 
+
+fat = 2;
+skin = 3;
+parfor onum = 1:length(tissueprop)
     selstl = fullfile('stlmodels_release',[tissueprop(onum).name '.stl']);
     if strcmp(tissueprop(onum).name,'fat')
         fat = onum;
@@ -57,8 +63,13 @@ for onum = 1:length(tissueprop)
             % voxelization
             organidx(:,:,:,scalev) = VOXELISE(xpts,ypts,zpts,meshXYZ);
         end
-        OUTPUTgridvalue(organidx) = onum;
+%         OUTPUTgridvalue(organidx) = onum;
+        organidxTissue(:,:,:,:,onum) = organidx;
     end
+end
+
+for onum = 1:length(tissueprop)
+    OUTPUTgridvalue(organidxTissue(:,:,:,:,onum)) = onum;
 end
 
 % Define ellipse center for fat and skin mask
