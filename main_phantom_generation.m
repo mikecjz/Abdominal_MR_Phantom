@@ -71,12 +71,13 @@ sampmode = 'simple'; % sampling mode: 'demo', 'simple', 'eachEcho'
 % Use 'eachEcho' option only when Echo-by-Echo simulation is nessasary
 
 % Define 3D respiratory motion curve and temporal resolution (eq. each TR or each volume)
-respmotion = 'respmov.mat';
+respmotion = 'respmov_long.mat';
 tempres = 60; % temporal resolution (ms)
 tempdur = 4200; % duration of each respiratory cycle (ms)
-SImov = 13; % largest superior-inferior (SI) excursion (mm)
-APmov = 6.5; % largest anterior-posterior (AP) excursion (mm)
-LRmov = 2; % largest left-right (LR) excursion (mm)
+mscale = 1; % motion scale default 1
+SImov = 13*mscale; % largest superior-inferior (SI) excursion (mm)
+APmov = 6.5*mscale; % largest anterior-posterior (AP) excursion (mm)
+LRmov = 2*mscale; % largest left-right (LR) excursion (mm)
 
 % Define coil sensitivity map
 coilmap = 'origcmap.mat';
@@ -88,6 +89,14 @@ FWshift = 220; % water and fat are separated by approximately 440Hz in a 3T stat
 % Load defined tissue properties: T1, T2, ADC, PDFF
 tissueprop = tissueproperty;
 tframe = floor(tempdur/tempres);
+
+% Load ref images
+load('/home/junzhou/AbdomenPhantom/phanimg_SLIDER_320_40_60ms.mat')
+load('/home/junzhou/AbdomenPhantom/phanimg_long_SLIDER_320_40_60ms.mat')
+load('/home/junzhou/AbdomenPhantom/phanimg_short_SLIDER_320_40_60ms.mat')
+% combine phanimgs parfor experiments
+% phanimg_all = cat(4,phanimg,phanimg_long,phanimg_short);
+
 %% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%% PART 1 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -157,15 +166,45 @@ kz = round(randn(1,nt)*sigma+20);
 kz(kz>40) = 40;
 kz(kz<1) = 1;
 
+%random breathing pattern
+respcycles = 200; %make sure it takes more than 8 minutes
+cyclescat = generatecycletype(respcycles); % cycle catagories
+
+[tpcat,tpOrder] = cycles2time(cyclescat); %time points catagories and order in their catagories. each timepoint is tempres apart;
+respCat = zeros(1,nt);
+refOrder = zeros(1,nt);
+sigevoOrderAll = zeros(1,nt);
+for i = 1:nt
+    respCat(i) = tpcat(round(TRNumToTime(demosig(i))/tempres));
+    refOrder(i) = tpOrder(round(TRNumToTime(demosig(i))/tempres));
+    sigevoOrderAll(i) = demosig(mod(i-1,400)+1);
+end
+
 nval = 0.0016;
 bigloopStart = tic;
 parfor itp = 1:nt
     %     imPall =
     %     model2voximg(phanimg(:,:,:,mod(defseq.demosig(itp)-1,tframe)+1),sigevo(defseq.demosig(itp),:,:));
     %     % Ground truth images original
+    s = tic;
+    cat = respCat(itp);
+    order = refOrder(itp);
+    sigevoOrder = sigevoOrderAll(itp);
     
-    
-    imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(demosig(itp))/tempres)-1,tframe)+1),sigevo(demosig(mod(itp-1,400)+1),:,:)); % Ground truth image
+    switch cat
+        case 1
+            newOrder = order
+            imPall = model2voximg(phanimg(:,:,:,newOrder),sigevo(sigevoOrder,:,:));
+        case 2
+            newOrder = order+70;
+            imPall = model2voximg(phanimg_long(:,:,:,order),sigevo(sigevoOrder,:,:));
+        case 3
+            newOrder = order+175;
+            imPall = model2voximg(phanimg_short(:,:,:,order),sigevo(sigevoOrder,:,:));
+        otherwise
+            error('Invalid respCat. Valid respCat {1,2,3}')
+    end
+%     imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(demosig(itp))/tempres)-1,tframe)+1),sigevo(demosig(mod(itp-1,400)+1),:,:)); % Ground truth image
     
 %         imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
 %             sigevo(defseq.demosig(itp),:,:)); % Ground truth images
@@ -187,13 +226,14 @@ parfor itp = 1:nt
         
         kz(itp) = 20;
         kr(itp) = 20;
+        disp(['loop in ',num2str(toc(s)),' sec'])
     else
-        s = tic;
+        
         %SLIDER Simulation only
 %         cmdstr = 'opts_oneLine = prepareNUFFT(mtx,2,samptraj,''goldenAngle_360_tracked'',''fov'',fov,''FWshift'',FWshift,''GAtrace'',itp);';
 %         evalc(cmdstr);
         opts_oneLine = prepareNUFFT(mtx,2,samptraj,'goldenAngle_360_tracked','fov',fov,'FWshift',FWshift,'GAtrace',itp);
-        keyboard;
+       
         ksp2D = voximg2ksppar(imPall,cmap,nval,opts_oneLine,kz(itp)); % k-space + noise
         mixsampLin(:,:,itp) = squeeze(ksp2D(:,1,:));
         disp(['loop in ',num2str(toc(s)),' sec'])
