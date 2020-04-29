@@ -24,7 +24,7 @@ function mixsamp = voximg2ksppar(imPall,cmap,nval,opts,kz)
 [~,~,nc,~] = size(cmap);
 im2kspmask = true(nr,np);
 
-mixsamp = zeros(nr,np,nc,npar,'single');
+mixsamp = zeros(nr,np,nc,'single');
 
 tstart = tic;
 imW = permute(repmat(imPall(:,:,:,1),[1 1 1 nc]),[1 2 4 3]).*cmap;
