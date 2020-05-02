@@ -209,7 +209,14 @@ end
         maskSize = size(mask);
         
         nufft_args = {maskSize, [3 3], 2*maskSize, maskSize/2, 'table', 2^12, 'minmax:kb'};
-        G = Gmri(kspace, mask, 'fov', opts.fov, 'basis', {'rect'}, 'nufft', nufft_args);
+        
+        
+        %supress output, remove if you want warning info
+        G = [];
+        execstr = 'G = Gmri(kspace, mask, ''fov'', opts.fov, ''basis'', {''rect''}, ''nufft'', nufft_args);';
+        
+        evalc(execstr);
+%         G = Gmri(kspace, mask, 'fov', opts.fov, 'basis', {'rect'}, 'nufft', nufft_args);
 %         wi = mri_density_comp(kspace,'voronoi','fix_edge',0,'G',G.arg.Gnufft);
         wi = ir_mri_density_comp(kspace,'voronoi','fix_edge',0,'G',G.arg.Gnufft);
         wib = reshape(wi,size(kx));

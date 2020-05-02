@@ -94,6 +94,10 @@ tframe = floor(tempdur/tempres);
 load('/home/junzhou/AbdomenPhantom/phanimg_SLIDER_320_40_60ms.mat')
 load('/home/junzhou/AbdomenPhantom/phanimg_long_SLIDER_320_40_60ms.mat')
 load('/home/junzhou/AbdomenPhantom/phanimg_short_SLIDER_320_40_60ms.mat')
+phanimg = int8(phanimg);
+phanimg_long = int8(phanimg_long);
+phanimg_short = int8(phanimg_short);
+
 % combine phanimgs parfor experiments
 % phanimg_all = cat(4,phanimg,phanimg_long,phanimg_short);
 
@@ -158,13 +162,14 @@ nt = length(defseq.demosig);
 [nr,~] = size(opts.kx);
 % mixsamp = zeros(nr,np,nc,npar,nt,'single'); % will run out of memory for nt = 60,000
 
+
+navinterval = 10; % navigator intrval
 mixsampLin = zeros(nr,nc,nt)+1i*ones(nr,nc,nt);
 kr = defseq.demosig;
 
-sigma = 5; % std
-kz = round(randn(1,nt)*sigma+20);
-kz(kz>40) = 40;
-kz(kz<1) = 1;
+sigma = 10; % std
+kz = gaussianRandomKz(npar,nt,sigma,'seed',2);
+
 
 %random breathing pattern
 respcycles = 200; %make sure it takes more than 8 minutes
@@ -174,11 +179,17 @@ cyclescat = generatecycletype(respcycles); % cycle catagories
 respCat = zeros(1,nt);
 refOrder = zeros(1,nt);
 sigevoOrderAll = zeros(1,nt);
+
 for i = 1:nt
     respCat(i) = tpcat(round(TRNumToTime(demosig(i))/tempres));
     refOrder(i) = tpOrder(round(TRNumToTime(demosig(i))/tempres));
     sigevoOrderAll(i) = demosig(mod(i-1,400)+1);
 end
+
+%for parfor monitoring
+% addpath('/home/junzhou/ParforProgMon-master')
+% ppm = ParforProgressbar(nt);
+
 
 nval = 0.0016;
 bigloopStart = tic;
@@ -194,7 +205,7 @@ parfor itp = 1:nt
     switch cat
         case 1
             newOrder = order
-            imPall = model2voximg(phanimg(:,:,:,newOrder),sigevo(sigevoOrder,:,:));
+            imPall = model2voximg(phanimg(:,:,:,order),sigevo(sigevoOrder,:,:));
         case 2
             newOrder = order+70;
             imPall = model2voximg(phanimg_long(:,:,:,order),sigevo(sigevoOrder,:,:));
@@ -204,40 +215,34 @@ parfor itp = 1:nt
         otherwise
             error('Invalid respCat. Valid respCat {1,2,3}')
     end
-%     imPall = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(demosig(itp))/tempres)-1,tframe)+1),sigevo(demosig(mod(itp-1,400)+1),:,:)); % Ground truth image
-    
-%         imPall(:,:,:,:,itp) = model2voximg(phanimg(:,:,:,mod(round(TRNumToTime(defseq.demosig(itp))/80)-1,tframe)+1),...
-%             sigevo(defseq.demosig(itp),:,:)); % Ground truth images
-%         if itp == 1
-%             nval = calcnoiselvl(imPall,cmap);
-%         end
-    disp(itp)
+
     %     mixsamp(:,:,:,:,itp) = voximg2ksp(imPall,cmap,nval,opts); % k-space + noise
     
     %     ksp3D = voximg2ksppar(imPall,cmap,nval,opts); % k-space + noise
     
-    if mod(itp-1,10) ==0 %navigator line
+    if mod(itp-1,navinterval) ==0 %navigator line
         %SLIDER Simulation only
-%         cmdstr = 'opts_oneLine = prepareNUFFT(mtx,2,samptraj,''goldenAngle_360_tracked'',''fov'',fov,''FWshift'',FWshift,''GAtrace'',1);';
-%         evalc(cmdstr);
         opts_oneLine = prepareNUFFT(mtx,2,samptraj,'goldenAngle_360_tracked','fov',fov,'FWshift',FWshift,'GAtrace',1);
-        ksp2D = voximg2ksppar(imPall,cmap,nval,opts_oneLine,20); % k-space + noise
+        ksp2D = voximg2ksppar(imPall,cmap,nval,opts_oneLine,round(npar/2+1)); % k-space + noise
         mixsampLin(:,:,itp) = squeeze(ksp2D(:,1,:));
         
         kz(itp) = 20;
-        kr(itp) = 20;
-        disp(['loop in ',num2str(toc(s)),' sec'])
+        kr(itp) = 1;
+        disp(['Iteration:',num2str(itp),' ,loop in ',num2str(toc(s)),' sec'])
     else
         
         %SLIDER Simulation only
-%         cmdstr = 'opts_oneLine = prepareNUFFT(mtx,2,samptraj,''goldenAngle_360_tracked'',''fov'',fov,''FWshift'',FWshift,''GAtrace'',itp);';
-%         evalc(cmdstr);
-        opts_oneLine = prepareNUFFT(mtx,2,samptraj,'goldenAngle_360_tracked','fov',fov,'FWshift',FWshift,'GAtrace',itp);
+        GAorder = itp-floor((itp-1)/navinterval);
+        
+        opts_oneLine = prepareNUFFT(mtx,2,samptraj,'goldenAngle_360_tracked','fov',fov,'FWshift',FWshift,'GAtrace',GAorder);
        
         ksp2D = voximg2ksppar(imPall,cmap,nval,opts_oneLine,kz(itp)); % k-space + noise
         mixsampLin(:,:,itp) = squeeze(ksp2D(:,1,:));
-        disp(['loop in ',num2str(toc(s)),' sec'])
+        disp(['Iteration:',num2str(itp),' ,loop in ',num2str(toc(s)),' sec'])
     end
+%     pause(100/nt)
+%     
+%     ppm.increment();
 end
 disp(['SLIDER sim in ',num2str(toc(bigloopStart)),' sec'])
 
